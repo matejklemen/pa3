@@ -2,7 +2,7 @@ import sqlite3
 import nltk
 from bs4 import BeautifulSoup
 from os import listdir
-from os.path import join, isfile
+from os.path import join, isfile, exists
 from time import time
 
 
@@ -94,6 +94,11 @@ def process_document(document_path, conn):
 
 
 def build_index(conn):
+    # Check if index is already built
+    if exists(join("..", "data", ".index_exists.tmp")):
+        print("Inverted index exists, therefore not creating it again...")
+        return
+
     c = conn.cursor()
     # Create word index according to predefined vocabulary of tokens
     c.executemany("INSERT INTO IndexWord VALUES (?)", [(word,) for word in vocabulary])
@@ -109,6 +114,9 @@ def build_index(conn):
             print("Current file: '{}'...".format(doc_path))
             process_document(doc_path, conn)
 
+    with open(join("..", "data", ".index_exists.tmp"), "w") as f:
+        pass
+
 
 if __name__ == "__main__":
     # Uncomment the following line if you haven't already installed the punkt nltk addon
@@ -116,17 +124,15 @@ if __name__ == "__main__":
 
     conn = sqlite3.connect("../data/pa3.db")
     c = conn.cursor()
-    cleanup_tables(conn)
 
     t1 = time()
     build_index(conn)
     t2 = time()
     print("Time taken: %.5f" % (t2 - t1))
 
-    # print(process_document("data/evem.gov.si/evem.gov.si.55.html", conn))
     # c.execute("SELECT * FROM IndexWord")
     # print(c.fetchall())
-    c.execute("SELECT * FROM Posting")
+    # c.execute("SELECT * FROM Posting")
     # print(c.fetchall())
     conn.close()
 
