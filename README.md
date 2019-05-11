@@ -3,5 +3,5 @@
 ## Setup
 1. Create the SQLite database.
 ```
-$ sqlite3 pa3.db < pa3db.sql
+$ sqlite3 data/pa3.db < pa3db.sql
 ```
