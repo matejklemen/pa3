@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from os import listdir, sep
 from os.path import join, isfile, exists
 from time import time
-from numpy import unique
+import numpy as np
 
 
 # TODO: there might be some more stopwords in the example in instructions (didn't check yet)
@@ -143,7 +143,7 @@ def display_results(res):
             for k in range(-3, 3 + 1):
                 curr_offsets_w_neigh.append(max(0, offset + k))
 
-        # uniq_offsets = unique(curr_offsets_w_neigh)
+        # uniq_offsets = np.unique(curr_offsets_w_neigh)
         # print(curr_text[uniq_offsets[0]], end=" ")
         # for i in range(1, len(uniq_offsets)):
         #     if uniq_offsets[i] - uniq_offsets[i - 1] > 1:
@@ -153,7 +153,7 @@ def display_results(res):
         print("TBD")
 
 
-def search(query, conn):
+def search_index(query, conn):
     c = conn.cursor()
     norm_query, norm_query_offsets = preprocess_data(query)
 
@@ -190,6 +190,50 @@ def search(query, conn):
     display_results(sorted_res)
 
 
+def search_naive(query):
+    norm_query, norm_query_offsets = preprocess_data(query)
+
+    search_results = {}
+    for curr_website in ["e-prostor.gov.si", "e-uprava.gov.si", "evem.gov.si", "podatki.gov.si"]:
+        curr_website_dir = join("..", "data", curr_website)
+        curr_website_files = [f for f in listdir(curr_website_dir)
+                              if isfile(join(curr_website_dir, f))]
+
+        for file in curr_website_files:
+            doc_path = join(curr_website_dir, file)
+
+            with open(doc_path, "r", encoding="iso 8859-1") as f_page:
+                soup = BeautifulSoup(f_page, "lxml")
+
+            for s in soup(["script", "style"]):
+                s.extract()
+
+            preprocessed_text, offsets = preprocess_data(soup.text)
+            curr_doc_stats = dict()
+            # yikes, how many nested for loops do we need
+            for i, token in enumerate(preprocessed_text):
+                for q_word in norm_query:
+                    if q_word == token:
+                        curr_doc_stats["freq"] = curr_doc_stats.get("freq", 0) + 1
+                        curr_offsets = curr_doc_stats.get("offsets", None)
+                        if curr_offsets is None:
+                            curr_offsets = [offsets[i]]
+                        else:
+                            curr_offsets.append(offsets[i])
+                        curr_doc_stats["offsets"] = curr_offsets
+
+            if curr_doc_stats:
+                search_results[doc_path] = curr_doc_stats
+
+    # Sort descending by sum of query word frequencies
+    sorted_res = sorted(search_results.items(),
+                        key=lambda pair: pair[1]["freq"],
+                        reverse=True)
+
+    # TODO: fix this function
+    display_results(sorted_res)
+
+
 if __name__ == "__main__":
     # Uncomment the following line if you haven't already installed the punkt nltk addon
     # nltk.download('punkt')
@@ -200,8 +244,21 @@ if __name__ == "__main__":
     t1 = time()
     build_index(conn)
     t2 = time()
+    print("Time spent building index: {:.5f}s...".format(t2 - t1))
 
-    search("social services", conn)
+    # TODO: add more queries when testing and creating report (also, use more, like 5 or 10, reps
+    # TODO: when measuring time for report
+    for test_query in ["social services"]:
+        t1 = time()
+        search_index("social services", conn)
+        t2 = time()
+        print("-----------------")
+        t3 = time()
+        search_naive("social services")
+        t4 = time()
+
+        print("Query '{}' took {:.5f}s using inverted index and {:.5f}s "
+              "using naive approach...".format(test_query, t2 - t1, t4 - t3))
 
     # c.execute("SELECT * FROM IndexWord")
     # print(c.fetchall())
