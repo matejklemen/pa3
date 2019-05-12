@@ -1,9 +1,10 @@
 import sqlite3
 import nltk
 from bs4 import BeautifulSoup
-from os import listdir
+from os import listdir, sep
 from os.path import join, isfile, exists
 from time import time
+from numpy import unique
 
 
 # TODO: there might be some more stopwords in the example in instructions (didn't check yet)
@@ -36,6 +37,7 @@ def preprocess_data(content):
     tokens = nltk.word_tokenize(normalized_text, language="slovene")
     mask = list(map(lambda word: word not in stopwords, tokens))
 
+    # TODO: figure out these offsets
     # get offset for words in original text before removing stop words
     token_indices_no_stopwords = list(filter(lambda i: mask[i], range(len(tokens))))
     tokens_no_stopwords = [tokens[i] for i in token_indices_no_stopwords]
@@ -51,7 +53,6 @@ def cleanup_tables(conn):
 
 
 def process_document(document_path, conn):
-    doc_name = document_path.split("/")[-1]
     c = conn.cursor()
 
     with open(document_path, "r", encoding="iso 8859-1") as f_page:
@@ -86,7 +87,7 @@ def process_document(document_path, conn):
         curr_offsets = ",".join(curr_word_stats["offsets"])
 
         c.execute("INSERT INTO Posting VALUES (?, ?, ?, ?)", (curr_word,
-                                                              doc_name,
+                                                              document_path,
                                                               curr_count,
                                                               curr_offsets))
 
@@ -99,6 +100,7 @@ def build_index(conn):
         print("Inverted index exists, therefore not creating it again...")
         return
 
+    cleanup_tables(conn)
     c = conn.cursor()
     # Create word index according to predefined vocabulary of tokens
     c.executemany("INSERT INTO IndexWord VALUES (?)", [(word,) for word in vocabulary])
@@ -114,8 +116,78 @@ def build_index(conn):
             print("Current file: '{}'...".format(doc_path))
             process_document(doc_path, conn)
 
+    # Create cache file to signal that index should not be rebuilt on next run of this program
     with open(join("..", "data", ".index_exists.tmp"), "w") as f:
         pass
+
+
+def display_results(res):
+    for file_path, stats in res:
+        doc_name = file_path.split(sep)[-1]
+        with open(file_path, "r") as curr_f:
+            curr_soup = BeautifulSoup(curr_f, "lxml")
+
+        for s in curr_soup(["script", "style"]):
+            s.extract()
+
+        # TODO: figure what and how to display summary text in search results (this aint it, chief)
+        # TODO: (might need to also change the way offsets are calculated in preprocess function)
+        curr_text = curr_soup.text
+        curr_freq = stats["freq"]
+        curr_offsets = stats["offsets"]
+
+        print("Document: '{}', frequency: {}, text: ".format(doc_name, curr_freq), end="")
+
+        curr_offsets_w_neigh = []
+        for offset in curr_offsets:
+            for k in range(-3, 3 + 1):
+                curr_offsets_w_neigh.append(max(0, offset + k))
+
+        # uniq_offsets = unique(curr_offsets_w_neigh)
+        # print(curr_text[uniq_offsets[0]], end=" ")
+        # for i in range(1, len(uniq_offsets)):
+        #     if uniq_offsets[i] - uniq_offsets[i - 1] > 1:
+        #         print("...", end=" ")
+        #
+        #     print(curr_text[uniq_offsets[i]], end=" ")
+        print("TBD")
+
+
+def search(query, conn):
+    c = conn.cursor()
+    norm_query, norm_query_offsets = preprocess_data(query)
+
+    search_results = {}
+    # Sum up frequencies of query word occurences in each of the documents they occur in
+    for curr_word in norm_query:
+        curr_offset, res_limit = 0, 10000
+        # Assign some garbage to results so that it's non-empty and first
+        # iteration of while-loop always executes
+        res = [None]
+        while len(res) > 0:
+            c.execute("SELECT * FROM Posting WHERE word = ? LIMIT ? OFFSET ?",
+                      (curr_word, res_limit, curr_offset))
+            res = c.fetchall()
+            curr_offset += res_limit
+
+            for _, doc_name, curr_freq, curr_offsets in res:
+                curr_doc_stats = search_results.get(doc_name, None)
+                if curr_doc_stats is None:
+                    curr_doc_stats = dict()
+                    curr_doc_stats["freq"] = curr_freq
+                    curr_doc_stats["offsets"] = list(map(int, curr_offsets.split(",")))
+                else:
+                    curr_doc_stats["freq"] += curr_freq
+                    curr_doc_stats["offsets"].extend(map(int, curr_offsets.split(",")))
+                search_results[doc_name] = curr_doc_stats
+
+    # Sort descending by sum of query word frequencies
+    sorted_res = sorted(search_results.items(),
+                        key=lambda pair: pair[1]["freq"],
+                        reverse=True)
+
+    # TODO: fix this function
+    display_results(sorted_res)
 
 
 if __name__ == "__main__":
@@ -128,7 +200,8 @@ if __name__ == "__main__":
     t1 = time()
     build_index(conn)
     t2 = time()
-    print("Time taken: %.5f" % (t2 - t1))
+
+    search("social services", conn)
 
     # c.execute("SELECT * FROM IndexWord")
     # print(c.fetchall())
