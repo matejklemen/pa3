@@ -187,7 +187,9 @@ def search_index(query, conn):
                         reverse=True)
 
     # TODO: fix this function
-    display_results(sorted_res)
+    # display_results(sorted_res)
+    # Display up to top 5 results
+    display_results(sorted_res[:5])
 
 
 def search_naive(query):
@@ -248,17 +250,20 @@ if __name__ == "__main__":
 
     # TODO: add more queries when testing and creating report (also, use more, like 5 or 10, reps
     # TODO: when measuring time for report
-    for test_query in ["social services"]:
+    queries = ["predelovalne dejavnosti", "trgovina","social services",
+        "Sistem SPOT", "davek na blago", "novosti na trgu"]
+    for test_query in queries:
         t1 = time()
-        search_index("social services", conn)
+        search_index(test_query, conn)
         t2 = time()
-        print("-----------------")
+        print("--------")
         t3 = time()
-        search_naive("social services")
+        # search_naive(test_query)
         t4 = time()
 
         print("Query '{}' took {:.5f}s using inverted index and {:.5f}s "
               "using naive approach...".format(test_query, t2 - t1, t4 - t3))
+        print("----------------------------------------")
 
     # c.execute("SELECT * FROM IndexWord")
     # print(c.fetchall())
