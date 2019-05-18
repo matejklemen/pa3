@@ -15,6 +15,86 @@ with open("../data/vocabulary_ccgigafida.txt", "r") as f_stopwords:
     vocabulary = set([line.strip() for line in f_stopwords])
 
 
+def is_delimiter(character):
+    return character == " " or character == "\n" or character == "\t"
+
+
+def words_before(text, loc, n=3):
+    """Fetches n number of words before the token starting at position loc in the text.
+    If the beginning of the string is reached before finding n number of words, the string
+    found so far is returned.
+
+    Parameters
+    ----------
+    text: str
+        Website content
+
+    loc: int
+        Starting offset of the token in text
+
+    n: int
+        Number of words to find before loc
+    Returns
+    -------
+    str:
+        String of n number of words found before the current token found at loc.
+    """
+    res = ""
+    curr_location = loc - 2  # because at loc - 1 is the space character before the token
+    words_found = 0
+    while curr_location > 0 and words_found < n:
+        if is_delimiter(text[curr_location]):
+            words_found += 1
+        res = text[curr_location] + res
+        curr_location -= 1
+    return res.strip().replace("\t", " ").replace("\n", "")
+
+
+def words_after(text, loc, n=3):
+    """Fetches n number of words after the token starting at position loc in the text.
+    If the end of the string is reached before finding n number of words, the string
+    found so far is returned.
+
+    Parameters
+    ----------
+    text: str
+        Website content
+
+    loc: int
+        Starting offset of the token in text
+
+    n: int
+        Number of words to find after loc
+    Returns
+    -------
+    str:
+        String of n number of words found after the current token found at loc.
+    """
+    res = ""
+
+    curr_location = loc
+    words_found = 0
+
+    # find first next word after the current one (look for the next bunch of delimiters)
+    while curr_location < len(text):
+        if is_delimiter(text[curr_location]):
+            while is_delimiter(text[curr_location]):
+                curr_location += 1
+            break
+        else:
+            curr_location += 1
+
+    # add characters until three delimiters (" ", \n or \t) are found
+    while curr_location < len(text) and words_found < n:
+        if is_delimiter(text[curr_location]):
+            words_found += 1
+        res += text[curr_location]
+        curr_location += 1
+
+    # remove tabs or newline breaks from the text by replacing them with spaces
+    return res.strip().replace("\t", " ").replace("\n", "")
+
+
 def preprocess_data(content):
     """ Turns content to lowercase letters, tokenizes it (Slovene-specific) and removes
     stopwords (Slovene-specific).
