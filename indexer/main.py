@@ -109,7 +109,7 @@ def preprocess_data(content):
     tokens_no_stopwords: list of str
         Tokens for the preprocessed website or query
 
-    token_indices_no_stopwords: list of int
+    original_offsets: list of int
         Locations (offsets) for the resulting tokens in ORIGINAL (unprocessed) text
     """
     # Lowercase conversion, tokenization (Slovene), stopwords filtering (Slovene)
@@ -117,12 +117,35 @@ def preprocess_data(content):
     tokens = nltk.word_tokenize(normalized_text, language="slovene")
     mask = list(map(lambda word: word not in stopwords, tokens))
 
-    # TODO: figure out these offsets
-    # get offset for words in original text before removing stop words
+    # tokens for the preprocessed website or query
     token_indices_no_stopwords = list(filter(lambda i: mask[i], range(len(tokens))))
     tokens_no_stopwords = [tokens[i] for i in token_indices_no_stopwords]
 
-    return tokens_no_stopwords, token_indices_no_stopwords
+    # Offsets of tokens_no_stopwords in TOKENS without removed stopwords
+    original_offsets = []
+    occurencies = {}
+    for token_no_stopwords in tokens_no_stopwords:
+        idx = 0
+        # Valid is there, so we dont always just set offset to first found element.
+        # If one was allready found (is in dictionary 'occurencies'), we must search for next one
+        valid = 0
+        for token in tokens:
+            if token == token_no_stopwords:
+                if token in occurencies:
+                    if occurencies[token_no_stopwords] == valid:
+                        occurencies[token_no_stopwords] = occurencies.setdefault(token_no_stopwords, 0) + 1
+                        original_offsets.append(idx)
+                        break
+                    else:
+                        valid += 1
+                        continue
+                else:
+                    occurencies[token_no_stopwords] = occurencies.setdefault(token_no_stopwords, 0) + 1
+                    original_offsets.append(idx)
+                    break
+            idx += 1
+
+    return tokens_no_stopwords, original_offsets
 
 
 def cleanup_tables(conn):
@@ -201,7 +224,8 @@ def build_index(conn):
         pass
 
 
-def display_results(res):
+def display_results(res, query):
+    displayed = 0
     for file_path, stats in res:
         doc_name = file_path.split(sep)[-1]
         with open(file_path, "r") as curr_f:
@@ -216,13 +240,46 @@ def display_results(res):
         curr_freq = stats["freq"]
         curr_offsets = stats["offsets"]
 
-        print("Document: '{}', frequency: {}, text: ".format(doc_name, curr_freq), end="")
+        # Display only the example in the first offset. 3 words before and 3 after
+        tokens = nltk.word_tokenize(curr_text, language="slovene")
+        before_after_text = ''
+        try:
+            for offset in curr_offsets:
+                if tokens[offset].lower() in query:
+                    # There are less than 3 words before. Start with 0
+                    if offset < 3:
+                        before_after_text = ' '.join(tokens[0:offset+4])
+                    else:
+                        before_after_text = ' '.join(tokens[offset-3:offset+4])
 
-        curr_offsets_w_neigh = []
-        for offset in curr_offsets:
-            for k in range(-3, 3 + 1):
-                curr_offsets_w_neigh.append(max(0, offset + k))
+                    before_after_text = "..." + before_after_text + "..."
+                    print("Document: '{}', frequency: {}, text: {}".format(doc_name, curr_freq, before_after_text), end="\n")
+                    displayed += 1
+                    if displayed == 5:
+                        return
+                    break
+        except Exception as e:
+            # print(e)
+            pass
+        # if curr_offsets[0] < 3:
+        #     before_after_text = ' '.join(tokens[0: curr_offsets[0]+4])
+        # else:
+        #     before_after_text = ' '.join(tokens[curr_offsets[0]-3: curr_offsets[0]+4])
 
+        # before_after_text = "..." + before_after_text + "..."
+        # print("Document: '{}', frequency: {}, text: {}".format(doc_name, curr_freq, before_after_text), end="\n")
+
+
+        # Using functions for 3 words before, 3 words after
+
+        # queried_word = tokens[curr_offsets[0]]
+        # before_after_text = "..."+words_before(curr_text, curr_offsets[0]) + queried_word + words_after(curr_text, curr_offsets[0])+"..."
+        
+
+        # curr_offsets_w_neigh = []
+        # for offset in curr_offsets:
+        #     for k in range(-3, 3 + 1):
+        #         curr_offsets_w_neigh.append(max(0, offset + k))
         # uniq_offsets = np.unique(curr_offsets_w_neigh)
         # print(curr_text[uniq_offsets[0]], end=" ")
         # for i in range(1, len(uniq_offsets)):
@@ -230,8 +287,6 @@ def display_results(res):
         #         print("...", end=" ")
         #
         #     print(curr_text[uniq_offsets[i]], end=" ")
-        print("TBD")
-
 
 def search_index(query, conn):
     c = conn.cursor()
@@ -269,7 +324,7 @@ def search_index(query, conn):
     # TODO: fix this function
     # display_results(sorted_res)
     # Display up to top 5 results
-    display_results(sorted_res[:5])
+    display_results(sorted_res[:10], norm_query)
 
 
 def search_naive(query):
@@ -313,7 +368,7 @@ def search_naive(query):
                         reverse=True)
 
     # TODO: fix this function
-    display_results(sorted_res)
+    display_results(sorted_res[:10], norm_query)
 
 
 if __name__ == "__main__":
@@ -331,7 +386,7 @@ if __name__ == "__main__":
     # TODO: add more queries when testing and creating report (also, use more, like 5 or 10, reps
     # TODO: when measuring time for report
     queries = ["predelovalne dejavnosti", "trgovina","social services",
-        "Sistem SPOT", "davek na blago", "novosti na trgu"]
+        "Sistem SPOT", "davek in dajatve", "poravnava"]
     for test_query in queries:
         t1 = time()
         search_index(test_query, conn)
