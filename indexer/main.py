@@ -1,14 +1,13 @@
 import sqlite3
 import nltk
+import string
 from bs4 import BeautifulSoup
 from os import listdir, sep
 from os.path import join, isfile, exists
 from time import time
-import string
 from tabulate import tabulate
 
 
-# TODO: there might be some more stopwords in the example in instructions (didn't check yet)
 with open("../data/slovenian-stopwords.txt", "r") as f_stopwords:
     stopwords = set([line.strip() for line in f_stopwords])
 
@@ -124,7 +123,7 @@ def build_index(conn):
         pass
 
 
-def display_results(res, query):
+def display_results(res):
     results = []
     for file_path, stats in res:
         doc_name = file_path.split(sep)[-1]
@@ -134,7 +133,6 @@ def display_results(res, query):
         for s in curr_soup(["script", "style"]):
             s.extract()
 
-        # TODO: figure what and how to display summary text in search results
         curr_text = curr_soup.text.lower()
         curr_freq = stats["freq"]
         curr_offsets = stats["offsets"]
@@ -142,7 +140,6 @@ def display_results(res, query):
         # How many examples to display
         display_snippets = 3
         display_string = ""
-
 
         # Display only the example in the first offset. 3 words before and 3 after
         tokens_doc = nltk.word_tokenize(curr_text, language="slovene")
@@ -166,10 +163,7 @@ def display_results(res, query):
 
             # TODO: display punctuation in a nicer way (don't put spaces before punctuation) ?
             # Display words before the query word and the query word itself
-            # print(" ... ", end="")
-            display_string += "..."  + " ".join(tokens_doc[tmp_cursor: offset]) + " [{}] ".format(tokens_doc[offset])
-            # print(" ".join(tokens_doc[tmp_cursor: offset]), end=" ")
-            # print("[{}]".format(tokens_doc[offset]), end=" ")
+            display_string += "..." + " ".join(tokens_doc[tmp_cursor: offset]) + " [{}] ".format(tokens_doc[offset])
 
             tmp_cursor = offset + 1
             tokens_found = 0
@@ -223,7 +217,7 @@ def search_index(query, conn):
                         reverse=True)
 
     # Display snippets from top 5 documents according to frequency
-    display_results(sorted_res[:5], norm_query)
+    display_results(sorted_res[:5])
 
 
 def search_naive(query):
