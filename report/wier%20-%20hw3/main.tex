@@ -1,0 +1,106 @@
+% ============================================================================================
+% This is a LaTeX template used for the course
+%
+%  I M A G E   B A S E D   B I O M E T R I C S
+%
+% Faculty of Computer and Information Science
+% University of Ljubljana
+% Slovenia, EU
+%
+% You can use this template for whatever reason you like.
+% If you have any questions feel free to contact
+% ziga.emersic@fri.uni-lj.si
+% ============================================================================================
+
+\documentclass[9pt]{IEEEtran}
+
+% basic
+\usepackage[english]{babel}
+\usepackage{graphicx,epstopdf,fancyhdr,amsmath,amsthm,amssymb,url,array,textcomp,svg,listings,hyperref,xcolor,colortbl,float,gensymb,longtable,supertabular,multicol,placeins,minted}
+
+ % `sumniki' in names
+\usepackage[utf8x]{inputenc}
+
+ % search and copy for `sumniki'
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\input{glyphtounicode}
+\pdfgentounicode=1
+
+% tidy figures
+\graphicspath{{./figures/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg,.eps}
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor trig-gs}
+
+% ============================================================================================
+
+\title{\vspace{0ex} %
+% TITLE IN HERE:
+Data processing, indexing and querying
+\\ \normalsize{Web Information Extraction and Retrieval 2018/19, Faculty of Computer and Information Science, University of Ljubljana}}
+\author{ %
+% AUTHOR IN HERE:
+Matej Klemen, Andraž Povše, Jaka Stavanja
+\vspace{-4.0ex}
+}
+
+% ============================================================================================
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In this work we present our implementation of a simple index and queries againts it.
+First we are performing some data processing and indexing.
+With the gathered data and structured index, we are going to perform data retrieval by testing multiple queries and displaying the results.
+We test inverted index and naive approach and compare the performance of both.
+\end{abstract}
+
+\section{Introduction}
+Querying the world wide web is a task we perform every day.
+In the background, Google uses databases that contain indexed website data along with some other secrets to display most relevant results for the query at that specific moment.
+Therefore, in order to display relevant results, we must first process the information on the website, build an index based on it, and then use this information to display most relevant results.
+First step is processing the data and is described in chapter ~\ref{section:data_processing}.
+Next comes the indexing, which is presented in chapter ~\ref{section:data_indexing}.
+Final step in the puzzle is data retrieval we perform after we are faced with a query. The implementation is shown in chapter ~\ref{section:data_retrieval}
+
+\section{Data processing}
+\label{section:data_processing}
+Separately describe data processing and indexing and data retrieval (with and without inverted index).
+Tokenization, stopword removal, ...
+\subsection{Inverted index}
+
+\subsection{Naive approach}
+
+
+\section{Data indexing}
+\label{section:data_indexing}
+
+Separately describe data processing and indexing and data retrieval (with and without inverted index).
+Indexing process, index occurency of each word, ..
+\subsection{Inverted index}
+
+\subsection{Naive approach}
+
+\section{Database}
+Describe the database (number of indexed words, words and documents with the highest frequencies, …)
+
+\section{Data retrieval}
+\label{section:data_retrieval}
+
+Separately describe data processing and indexing and data retrieval (with and without inverted index).
+
+How we handled queries, searching words in our index, ...
+\subsection{Inverted index}
+
+\subsection{Naive approach}
+
+\section{Conclusion}
+\label{section:conclusion}
+We presented 2 different approaches to handle a query.
+First one used inverted index and was substantially faster than the other, naive implementation where we processed each file at time and had no built index.
+Building the index (SQLite database) did not take that much time compared to 0 with naive approach, but the end result when measuring time elapsed for each query was much better. 
+\end{document}
