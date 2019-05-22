@@ -5,6 +5,7 @@ from os import listdir, sep
 from os.path import join, isfile, exists
 from time import time
 import string
+from tabulate import tabulate
 
 
 # TODO: there might be some more stopwords in the example in instructions (didn't check yet)
@@ -124,6 +125,7 @@ def build_index(conn):
 
 
 def display_results(res, query):
+    results = []
     for file_path, stats in res:
         doc_name = file_path.split(sep)[-1]
         with open(file_path, "r", encoding=ENCODING) as curr_f:
@@ -182,7 +184,10 @@ def display_results(res, query):
             # print(" ".join(tokens_doc[offset + 1: tmp_cursor]), end="")
         display_string += "..."
         # print("...")
-        print("Frequency: {} Document: '{}' Snippet: '{}'\n".format(curr_freq, doc_name, display_string))
+        results.append([curr_freq, doc_name, display_string])
+
+    print(tabulate(results, headers=['Frequency', 'Document', 'Snippet']))
+
 
 def search_index(query, conn):
     c = conn.cursor()
@@ -283,15 +288,16 @@ if __name__ == "__main__":
                "Sistem SPOT", "davek in dajatve", "poravnava"]
     for test_query in queries:
         t1 = time()
+        print("Results for query: ", test_query)
+        print()
         search_index(test_query, conn)
         t2 = time()
-        print("--------")
+        print()
         t3 = time()
         # search_naive(test_query)
         t4 = time()
-
-        print("Query '{}' took {:.5f}s using inverted index and {:.5f}s "
-              "using naive approach...".format(test_query, t2 - t1, t4 - t3))
+        print("Results found in {:.5f}s using inverted index and in {:.5f}s "
+              "using naive approach...".format(t2 - t1, t4 - t3))
         print("----------------------------------------")
 
     conn.close()
