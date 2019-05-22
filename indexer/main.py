@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from os import listdir, sep
 from os.path import join, isfile, exists
 from time import time
-import numpy as np
+import string
 
 
 # TODO: there might be some more stopwords in the example in instructions (didn't check yet)
@@ -15,84 +15,7 @@ with open("../data/vocabulary_ccgigafida.txt", "r") as f_stopwords:
     vocabulary = set([line.strip() for line in f_stopwords])
 
 
-def is_delimiter(character):
-    return character == " " or character == "\n" or character == "\t"
-
-
-def words_before(text, loc, n=3):
-    """Fetches n number of words before the token starting at position loc in the text.
-    If the beginning of the string is reached before finding n number of words, the string
-    found so far is returned.
-
-    Parameters
-    ----------
-    text: str
-        Website content
-
-    loc: int
-        Starting offset of the token in text
-
-    n: int
-        Number of words to find before loc
-    Returns
-    -------
-    str:
-        String of n number of words found before the current token found at loc.
-    """
-    res = ""
-    curr_location = loc - 2  # because at loc - 1 is the space character before the token
-    words_found = 0
-    while curr_location > 0 and words_found < n:
-        if is_delimiter(text[curr_location]):
-            words_found += 1
-        res = text[curr_location] + res
-        curr_location -= 1
-    return res.strip().replace("\t", " ").replace("\n", "")
-
-
-def words_after(text, loc, n=3):
-    """Fetches n number of words after the token starting at position loc in the text.
-    If the end of the string is reached before finding n number of words, the string
-    found so far is returned.
-
-    Parameters
-    ----------
-    text: str
-        Website content
-
-    loc: int
-        Starting offset of the token in text
-
-    n: int
-        Number of words to find after loc
-    Returns
-    -------
-    str:
-        String of n number of words found after the current token found at loc.
-    """
-    res = ""
-
-    curr_location = loc
-    words_found = 0
-
-    # find first next word after the current one (look for the next bunch of delimiters)
-    while curr_location < len(text):
-        if is_delimiter(text[curr_location]):
-            while is_delimiter(text[curr_location]):
-                curr_location += 1
-            break
-        else:
-            curr_location += 1
-
-    # add characters until three delimiters (" ", \n or \t) are found
-    while curr_location < len(text) and words_found < n:
-        if is_delimiter(text[curr_location]):
-            words_found += 1
-        res += text[curr_location]
-        curr_location += 1
-
-    # remove tabs or newline breaks from the text by replacing them with spaces
-    return res.strip().replace("\t", " ").replace("\n", "")
+ENCODING = "utf8"
 
 
 def preprocess_data(content):
@@ -109,7 +32,7 @@ def preprocess_data(content):
     tokens_no_stopwords: list of str
         Tokens for the preprocessed website or query
 
-    original_offsets: list of int
+    token_indices_no_stopwords: list of int
         Locations (offsets) for the resulting tokens in ORIGINAL (unprocessed) text
     """
     # Lowercase conversion, tokenization (Slovene), stopwords filtering (Slovene)
@@ -121,31 +44,7 @@ def preprocess_data(content):
     token_indices_no_stopwords = list(filter(lambda i: mask[i], range(len(tokens))))
     tokens_no_stopwords = [tokens[i] for i in token_indices_no_stopwords]
 
-    # Offsets of tokens_no_stopwords in TOKENS without removed stopwords
-    original_offsets = []
-    occurencies = {}
-    for token_no_stopwords in tokens_no_stopwords:
-        idx = 0
-        # Valid is there, so we dont always just set offset to first found element.
-        # If one was allready found (is in dictionary 'occurencies'), we must search for next one
-        valid = 0
-        for token in tokens:
-            if token == token_no_stopwords:
-                if token in occurencies:
-                    if occurencies[token_no_stopwords] == valid:
-                        occurencies[token_no_stopwords] = occurencies.setdefault(token_no_stopwords, 0) + 1
-                        original_offsets.append(idx)
-                        break
-                    else:
-                        valid += 1
-                        continue
-                else:
-                    occurencies[token_no_stopwords] = occurencies.setdefault(token_no_stopwords, 0) + 1
-                    original_offsets.append(idx)
-                    break
-            idx += 1
-
-    return tokens_no_stopwords, original_offsets
+    return tokens_no_stopwords, token_indices_no_stopwords
 
 
 def cleanup_tables(conn):
@@ -158,7 +57,7 @@ def cleanup_tables(conn):
 def process_document(document_path, conn):
     c = conn.cursor()
 
-    with open(document_path, "r", encoding="iso 8859-1") as f_page:
+    with open(document_path, "r", encoding=ENCODING) as f_page:
         soup = BeautifulSoup(f_page, "lxml")
 
     # Remove style and script tags - they mostly don't help us at this stage
@@ -225,68 +124,55 @@ def build_index(conn):
 
 
 def display_results(res, query):
-    displayed = 0
     for file_path, stats in res:
         doc_name = file_path.split(sep)[-1]
-        with open(file_path, "r") as curr_f:
+        print("Document: '{}'...".format(doc_name))
+        with open(file_path, "r", encoding=ENCODING) as curr_f:
             curr_soup = BeautifulSoup(curr_f, "lxml")
 
         for s in curr_soup(["script", "style"]):
             s.extract()
 
-        # TODO: figure what and how to display summary text in search results (this aint it, chief)
-        # TODO: (might need to also change the way offsets are calculated in preprocess function)
-        curr_text = curr_soup.text
+        # TODO: figure what and how to display summary text in search results
+        curr_text = curr_soup.text.lower()
         curr_freq = stats["freq"]
         curr_offsets = stats["offsets"]
 
         # Display only the example in the first offset. 3 words before and 3 after
-        tokens = nltk.word_tokenize(curr_text, language="slovene")
-        before_after_text = ''
-        try:
-            for offset in curr_offsets:
-                if tokens[offset].lower() in query:
-                    # There are less than 3 words before. Start with 0
-                    if offset < 3:
-                        before_after_text = ' '.join(tokens[0:offset+4])
-                    else:
-                        before_after_text = ' '.join(tokens[offset-3:offset+4])
+        tokens_doc = nltk.word_tokenize(curr_text, language="slovene")
 
-                    before_after_text = "..." + before_after_text + "..."
-                    print("Document: '{}', frequency: {}, text: {}".format(doc_name, curr_freq, before_after_text), end="\n")
-                    displayed += 1
-                    if displayed == 5:
-                        return
-                    break
-        except Exception as e:
-            # print(e)
-            pass
-        # if curr_offsets[0] < 3:
-        #     before_after_text = ' '.join(tokens[0: curr_offsets[0]+4])
-        # else:
-        #     before_after_text = ' '.join(tokens[curr_offsets[0]-3: curr_offsets[0]+4])
+        for offset in curr_offsets:
+            # Cursor with which we move from the central word to the beginning of doc to find
+            # the window of surrounding words
+            tmp_cursor = offset - 1
+            tokens_found = 0
+            while tmp_cursor >= 0 and tokens_found < 3:
+                if tokens_doc[tmp_cursor] not in string.punctuation:
+                    tokens_found += 1
+                tmp_cursor -= 1
 
-        # before_after_text = "..." + before_after_text + "..."
-        # print("Document: '{}', frequency: {}, text: {}".format(doc_name, curr_freq, before_after_text), end="\n")
+            # `tmp_cursor` still gets decremented after finding last word of interest
+            # => shows to 1 word before what we actually want
+            tmp_cursor = max(0, tmp_cursor + 1)
 
+            # TODO: display punctuation in a nicer way (don't put spaces before punctuation) ?
+            # Display words before the query word and the query word itself
+            print(" ... ", end="")
+            print(" ".join(tokens_doc[tmp_cursor: offset]), end=" ")
+            print("[{}]".format(tokens_doc[offset]), end=" ")
 
-        # Using functions for 3 words before, 3 words after
+            tmp_cursor = offset + 1
+            tokens_found = 0
+            while tmp_cursor < len(tokens_doc) and tokens_found < 3:
+                if tokens_doc[tmp_cursor] not in string.punctuation:
+                    tokens_found += 1
+                tmp_cursor += 1
+                pass
 
-        # queried_word = tokens[curr_offsets[0]]
-        # before_after_text = "..."+words_before(curr_text, curr_offsets[0]) + queried_word + words_after(curr_text, curr_offsets[0])+"..."
-        
+            # Display words after the query word and the query word itself
+            print(" ".join(tokens_doc[offset + 1: tmp_cursor]), end="")
+        print("...")
 
-        # curr_offsets_w_neigh = []
-        # for offset in curr_offsets:
-        #     for k in range(-3, 3 + 1):
-        #         curr_offsets_w_neigh.append(max(0, offset + k))
-        # uniq_offsets = np.unique(curr_offsets_w_neigh)
-        # print(curr_text[uniq_offsets[0]], end=" ")
-        # for i in range(1, len(uniq_offsets)):
-        #     if uniq_offsets[i] - uniq_offsets[i - 1] > 1:
-        #         print("...", end=" ")
-        #
-        #     print(curr_text[uniq_offsets[i]], end=" ")
 
 def search_index(query, conn):
     c = conn.cursor()
@@ -321,10 +207,8 @@ def search_index(query, conn):
                         key=lambda pair: pair[1]["freq"],
                         reverse=True)
 
-    # TODO: fix this function
-    # display_results(sorted_res)
-    # Display up to top 5 results
-    display_results(sorted_res[:10], norm_query)
+    # Display snippets from top 5 documents according to frequency
+    display_results(sorted_res[:5], norm_query)
 
 
 def search_naive(query):
@@ -339,7 +223,7 @@ def search_naive(query):
         for file in curr_website_files:
             doc_path = join(curr_website_dir, file)
 
-            with open(doc_path, "r", encoding="iso 8859-1") as f_page:
+            with open(doc_path, "r", encoding=ENCODING) as f_page:
                 soup = BeautifulSoup(f_page, "lxml")
 
             for s in soup(["script", "style"]):
@@ -367,8 +251,8 @@ def search_naive(query):
                         key=lambda pair: pair[1]["freq"],
                         reverse=True)
 
-    # TODO: fix this function
-    display_results(sorted_res[:10], norm_query)
+    # Display snippets from top 5 documents according to frequency
+    display_results(sorted_res[:5], norm_query)
 
 
 if __name__ == "__main__":
@@ -385,8 +269,8 @@ if __name__ == "__main__":
 
     # TODO: add more queries when testing and creating report (also, use more, like 5 or 10, reps
     # TODO: when measuring time for report
-    queries = ["predelovalne dejavnosti", "trgovina","social services",
-        "Sistem SPOT", "davek in dajatve", "poravnava"]
+    queries = ["predelovalne dejavnosti", "trgovina", "social services",
+               "Sistem SPOT", "davek in dajatve", "poravnava"]
     for test_query in queries:
         t1 = time()
         search_index(test_query, conn)
@@ -400,10 +284,6 @@ if __name__ == "__main__":
               "using naive approach...".format(test_query, t2 - t1, t4 - t3))
         print("----------------------------------------")
 
-    # c.execute("SELECT * FROM IndexWord")
-    # print(c.fetchall())
-    # c.execute("SELECT * FROM Posting")
-    # print(c.fetchall())
     conn.close()
 
 
