@@ -126,7 +126,6 @@ def build_index(conn):
 def display_results(res, query):
     for file_path, stats in res:
         doc_name = file_path.split(sep)[-1]
-        print("Document: '{}'...".format(doc_name))
         with open(file_path, "r", encoding=ENCODING) as curr_f:
             curr_soup = BeautifulSoup(curr_f, "lxml")
 
@@ -138,10 +137,18 @@ def display_results(res, query):
         curr_freq = stats["freq"]
         curr_offsets = stats["offsets"]
 
+        # How many examples to display
+        display_snippets = 3
+        display_string = ""
+
+
         # Display only the example in the first offset. 3 words before and 3 after
         tokens_doc = nltk.word_tokenize(curr_text, language="slovene")
-
         for offset in curr_offsets:
+            if display_snippets > 0:
+                display_snippets -= 1
+            else:
+                break
             # Cursor with which we move from the central word to the beginning of doc to find
             # the window of surrounding words
             tmp_cursor = offset - 1
@@ -157,9 +164,10 @@ def display_results(res, query):
 
             # TODO: display punctuation in a nicer way (don't put spaces before punctuation) ?
             # Display words before the query word and the query word itself
-            print(" ... ", end="")
-            print(" ".join(tokens_doc[tmp_cursor: offset]), end=" ")
-            print("[{}]".format(tokens_doc[offset]), end=" ")
+            # print(" ... ", end="")
+            display_string += "..."  + " ".join(tokens_doc[tmp_cursor: offset]) + " [{}] ".format(tokens_doc[offset])
+            # print(" ".join(tokens_doc[tmp_cursor: offset]), end=" ")
+            # print("[{}]".format(tokens_doc[offset]), end=" ")
 
             tmp_cursor = offset + 1
             tokens_found = 0
@@ -170,9 +178,11 @@ def display_results(res, query):
                 pass
 
             # Display words after the query word and the query word itself
-            print(" ".join(tokens_doc[offset + 1: tmp_cursor]), end="")
-        print("...")
-
+            display_string = display_string + " ".join(tokens_doc[offset + 1: tmp_cursor])
+            # print(" ".join(tokens_doc[offset + 1: tmp_cursor]), end="")
+        display_string += "..."
+        # print("...")
+        print("Frequency: {} Document: '{}' Snippet: '{}'\n".format(curr_freq, doc_name, display_string))
 
 def search_index(query, conn):
     c = conn.cursor()
