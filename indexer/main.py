@@ -185,7 +185,7 @@ def display_results(res):
 
 def search_index(query, conn):
     c = conn.cursor()
-    norm_query, norm_query_offsets = preprocess_data(query)
+    norm_query, _ = preprocess_data(query)
 
     search_results = {}
     # Sum up frequencies of query word occurences in each of the documents they occur in
@@ -221,7 +221,7 @@ def search_index(query, conn):
 
 
 def search_naive(query):
-    norm_query, norm_query_offsets = preprocess_data(query)
+    norm_query, _ = preprocess_data(query)
 
     search_results = {}
     for curr_website in ["e-prostor.gov.si", "e-uprava.gov.si", "evem.gov.si", "podatki.gov.si"]:
@@ -261,7 +261,7 @@ def search_naive(query):
                         reverse=True)
 
     # Display snippets from top 5 documents according to frequency
-    display_results(sorted_res[:5], norm_query)
+    display_results(sorted_res[:5])
 
 
 if __name__ == "__main__":
