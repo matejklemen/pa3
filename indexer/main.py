@@ -161,9 +161,19 @@ def display_results(res):
             # => shows to 1 word before what we actually want
             tmp_cursor = max(0, tmp_cursor + 1)
 
-            # TODO: display punctuation in a nicer way (don't put spaces before punctuation) ?
-            # Display words before the query word and the query word itself
-            display_string += "..." + " ".join(tokens_doc[tmp_cursor: offset]) + " [{}] ".format(tokens_doc[offset])
+            tokens_before = tokens_doc[tmp_cursor: offset]
+            text_before = ""
+            for token in tokens_before:
+                if token in string.punctuation:
+                    text_before += token
+                else:
+                    text_before += " " + token
+            
+            # add ellipsis and the text before our query token
+            display_string += "..." + text_before
+
+            # add our query token (enclosed in square brackets for better visibility)
+            display_string += " [{}]".format(tokens_doc[offset])
 
             tmp_cursor = offset + 1
             tokens_found = 0
@@ -173,11 +183,18 @@ def display_results(res):
                 tmp_cursor += 1
                 pass
 
-            # Display words after the query word and the query word itself
-            display_string = display_string + " ".join(tokens_doc[offset + 1: tmp_cursor])
-            # print(" ".join(tokens_doc[offset + 1: tmp_cursor]), end="")
+            tokens_after = tokens_doc[offset + 1: tmp_cursor]
+            text_after = ""
+            for token in tokens_after:
+                if token in string.punctuation:
+                    text_after += token
+                else:
+                    text_after += " " + token
+
+            # add text after the query word
+            display_string += text_after
+
         display_string += "..."
-        # print("...")
         results.append([curr_freq, doc_name, display_string])
 
     print(tabulate(results, headers=['Frequency', 'Document', 'Snippet']))
