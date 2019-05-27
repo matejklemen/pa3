@@ -68,13 +68,15 @@ Next comes the indexing, which is presented in chapter ~\ref{section:data_indexi
 Final step in the puzzle is data retrieval we perform after we are faced with a query. The implementation is shown in chapter ~\ref{section:data_retrieval}
 
 \section{Data processing}
+@Matej, opisi tist tvoj hack pri procesiranju oziroma indexiranju :D 
 \label{section:data_processing}
 Separately describe data processing and indexing and data retrieval (with and without inverted index).
 Tokenization, stopword removal, ...
 \subsection{Inverted index}
 
 \subsection{Naive approach}
-
+For the naive approach, we did not perform any a priori data processing, but handled it in real time. 
+We tokenized each file, removed stopwords and then search for occurencies of the words that exist in the query.
 
 \section{Data indexing}
 \label{section:data_indexing}
@@ -84,16 +86,19 @@ Indexing process, index occurency of each word, ..
 \subsection{Inverted index}
 
 \subsection{Naive approach}
+No indexing was performed with naive approach.
+Each file was opened and processed when we ran a query.
 
 \section{Database}
 Describe the database (number of indexed words, words and documents with the highest frequencies, …)
+\textbf{TODO: query the database for most frequent words, number of all words, etc.}
 
 \section{Data retrieval}
 \label{section:data_retrieval}
+\textbf{TODO: Separately describe data processing and indexing and data retrieval (with and without inverted index).
+How we handled queries, searching words in our index, ...}
 
-Separately describe data processing and indexing and data retrieval (with and without inverted index).
-
-How we handled queries, searching words in our index, ...
+Upon entering a query, we split it by ...
 \subsection{Inverted index}
 
 \subsection{Naive approach}
