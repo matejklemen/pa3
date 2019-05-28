@@ -44,4 +44,17 @@ with `nltk.download('punkt')` in the `main.py` file inside the `indexer` folder.
 
 ## Running the project
 
-TBD.
+Make sure you have completed and followed the setup instructions. Then, running the problem should be very simple.
+
+Change your directory to the indexer directory and run the command `python3 main.py`. For the first time, the command
+will install the `punkt` addon for nltk (if you have uncommented the line as described in the setup instructions) and
+create the index in the SQLite database. It will also run the predefined search queries and output the results.
+
+If you run `python3 main.py` again, the index will not be created again, since a .index_exists.tmp file will be created
+after the first run, however, the search queries will execute again.
+To also run the naive search queries, uncomment the line
+```python3
+# search_naive(test_query)
+```
+at the bottom of the `main.py` file
+and the queries will execute with the next run of the program.
