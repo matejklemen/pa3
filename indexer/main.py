@@ -293,8 +293,6 @@ if __name__ == "__main__":
     t2 = time()
     print("Time spent building index: {:.5f}s...".format(t2 - t1))
 
-    # TODO: add more queries when testing and creating report (also, use more, like 5 or 10, reps
-    # TODO: when measuring time for report
     queries = ["predelovalne dejavnosti", "trgovina", "social services",
                "Sistem SPOT", "davek in dajatve", "poravnava"]
     for test_query in queries:
